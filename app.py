@@ -121,6 +121,19 @@ def metric_card_html(label: str, value: str, accent: str = "green") -> str:
     """
 
 
+def metric_card_html_big(label: str, value: str, accent: str = "green") -> str:
+    border = ACCENT[accent]["border"]
+    return f"""
+    <div style="background:var(--secondary-background-color); border-radius:12px; padding:1.1rem 1.3rem;
+                border-left:4px solid {border}; box-shadow:0 1px 3px rgba(0,0,0,0.08); min-width:0;">
+        <div style="font-size:12.5px; color:var(--text-color); opacity:0.6; margin-bottom:6px;
+                    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{label}</div>
+        <div style="font-size:clamp(20px, 7.5vw, 30px); font-weight:700; color:var(--text-color);
+                    line-height:1.2; white-space:nowrap; overflow:hidden;">{value}</div>
+    </div>
+    """
+
+
 def metric_row_html(cards: list) -> str:
     cols = "".join(f'<div style="min-width:0;">{html}</div>' for html in cards)
     return f'<div style="display:grid; grid-template-columns:repeat({len(cards)}, 1fr); gap:10px; margin-bottom:1rem;">{cols}</div>'
@@ -439,10 +452,13 @@ if data:
                         [
                             metric_card_html("완료 시 평단가", fmt_price(final_avg_val, currency), "green"),
                             metric_card_html("총 매수 수량", f"{final_qty:.0f}주", "green"),
-                            metric_card_html(
-                                "현재가 대비 손익률", f"{pnl_pct:+.1f}%", "green" if pnl_pct >= 0 else "danger"
-                            ),
                         ]
+                    ),
+                    unsafe_allow_html=True,
+                )
+                st.markdown(
+                    metric_card_html_big(
+                        "현재가 대비 손익률", f"{pnl_pct:+.1f}%", "green" if pnl_pct >= 0 else "danger"
                     ),
                     unsafe_allow_html=True,
                 )
@@ -501,13 +517,24 @@ if data:
                 last_bought = ladder[completed_rounds - 1]
                 st.divider()
                 cur_pnl = (target_price - last_bought["avg_price"]) / last_bought["avg_price"] * 100 if last_bought["avg_price"] > 0 else 0
+                cur_pnl_amt = (target_price - last_bought["avg_price"]) * last_bought["cum_qty"]
                 st.markdown(
                     metric_row_html(
                         [
                             metric_card_html("매수 완료 회차", f"{completed_rounds} / {len(ladder)}회차", "green"),
                             metric_card_html("현재까지 평단가", fmt_price(last_bought["avg_price"], currency), "green"),
-                            metric_card_html(
-                                "목표가 달성시 예상 수익률", f"{cur_pnl:+.1f}%", "green" if cur_pnl >= 0 else "danger"
+                        ]
+                    ),
+                    unsafe_allow_html=True,
+                )
+                st.markdown(
+                    metric_row_html(
+                        [
+                            metric_card_html_big(
+                                "수익률", f"{cur_pnl:+.1f}%", "green" if cur_pnl >= 0 else "danger"
+                            ),
+                            metric_card_html_big(
+                                "수익금", fmt_price(cur_pnl_amt, currency), "green" if cur_pnl_amt >= 0 else "danger"
                             ),
                         ]
                     ),
