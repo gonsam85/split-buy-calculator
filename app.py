@@ -38,6 +38,25 @@ st.markdown(
     html, body, [class*="css"], .stApp, .stMarkdown, .stMetric, button, input, textarea, select {
         font-family: 'Space Grotesk', sans-serif !important;
     }
+    div[data-testid="stNumberInput"] input,
+    div[data-testid="stTextInput"] input,
+    div[data-baseweb="select"] > div {
+        background-color: var(--secondary-background-color) !important;
+        border-radius: 8px !important;
+        border: 1px solid rgba(128,128,128,0.25) !important;
+    }
+    div[data-testid="stForm"] {
+        background-color: var(--secondary-background-color);
+        border-radius: 12px;
+        padding: 1rem;
+        border: 1px solid rgba(128,128,128,0.15);
+    }
+    button[kind="primary"], button[kind="secondary"], .stButton button {
+        border-radius: 8px !important;
+    }
+    div[data-baseweb="tab-list"] {
+        gap: 4px;
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -47,19 +66,21 @@ st.title("📉 분할매수 계산기")
 st.caption("종목명이나 티커를 검색하면 야후 파이낸스에서 최고가·MDD 데이터를 실시간으로 가져와 분할매수 계획을 세워드려요. 한국·미국 주식 모두 검색할 수 있어요.")
 st.caption("💡 라이트/다크 모드는 오른쪽 위 ⋮ 메뉴 → Settings → Theme에서 바꿀 수 있어요.")
 
-# 네오 핀테크 스타일 카드 (짙은 배경 + 네온 포인트 좌측 보더)
+# 좌측 네온 보더 포인트 카드 — 배경/글자색은 Streamlit 테마 변수를 써서
+# 라이트/다크 모드 어느 쪽이든 자동으로 맞춰지도록 함
 ACCENT = {
-    "green": {"border": "#00E5A0", "label": "#6B7885", "value": "#E8ECEC"},
-    "danger": {"border": "#FF3B6B", "label": "#FF8FA8", "value": "#FF3B6B"},
+    "green": {"border": "#00C389"},
+    "danger": {"border": "#E5384F"},
 }
 
 
 def metric_card_html(label: str, value: str, accent: str = "green") -> str:
-    c = ACCENT[accent]
+    border = ACCENT[accent]["border"]
     return f"""
-    <div style="background:#10151B; border-radius:10px; padding:0.85rem 1rem; border-left:3px solid {c['border']};">
-        <div style="font-size:11.5px; color:{c['label']}; margin-bottom:3px;">{label}</div>
-        <div style="font-size:17px; font-weight:700; color:{c['value']};">{value}</div>
+    <div style="background:var(--secondary-background-color); border-radius:10px; padding:0.85rem 1rem;
+                border-left:3px solid {border}; box-shadow:0 1px 2px rgba(0,0,0,0.06);">
+        <div style="font-size:11.5px; color:var(--text-color); opacity:0.6; margin-bottom:3px;">{label}</div>
+        <div style="font-size:17px; font-weight:700; color:var(--text-color);">{value}</div>
     </div>
     """
 
@@ -361,7 +382,7 @@ if data:
             )
 
             styled = df.style.set_properties(
-                subset=["매수가"], **{"font-weight": "700", "font-size": "15px", "color": "#00E5A0"}
+                subset=["매수가"], **{"font-weight": "700", "font-size": "15px", "color": "#00A876"}
             )
             st.dataframe(styled, use_container_width=True, hide_index=True)
             st.caption("매수 수량은 소수점을 버리고 정수 주 단위로 계산해서, 회차별 투자금을 넘지 않도록 했어요.")
@@ -422,7 +443,7 @@ if data:
                 pnl_amt = (target_price - r["avg_price"]) * r["cum_qty"]
 
                 # 고정 회색 대신 opacity로 흐리게 처리해서 라이트/다크 모드 모두에서 자연스럽게 보이도록 함
-                text_style = "color:#00E5A0; font-weight:700;" if bought else "opacity:0.45;"
+                text_style = "color:#00A876; font-weight:700;" if bought else "opacity:0.45;"
                 row_cols[1].markdown(f"<span style='{text_style}'>{r['i'] + 1}회차{' ✓' if bought else ''}</span>", unsafe_allow_html=True)
                 row_cols[2].markdown(f"<span style='{text_style}'>{fmt_price(r['price'], currency)}</span>", unsafe_allow_html=True)
                 row_cols[3].markdown(f"<span style='{text_style}'>{fmt_price(r['avg_price'], currency)}</span>", unsafe_allow_html=True)
