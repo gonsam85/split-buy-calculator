@@ -5,6 +5,7 @@ import re
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 import yfinance as yf
 
 WATCHLIST_FILE = "watchlist.json"
@@ -28,8 +29,63 @@ def save_watchlist(watchlist):
         pass
 
 
+SAVED_PLANS_FILE = "saved_plans.json"
+
+
+def load_saved_plans():
+    if os.path.exists(SAVED_PLANS_FILE):
+        try:
+            with open(SAVED_PLANS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return []
+    return []
+
+
+def save_saved_plans(plans):
+    try:
+        with open(SAVED_PLANS_FILE, "w", encoding="utf-8") as f:
+            json.dump(plans, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
 
 st.set_page_config(page_title="분할매수 계산기", page_icon="icon.png", layout="wide")
+
+# 모바일 "홈 화면에 추가" 아이콘 적용: Streamlit은 <head>에 커스텀 태그를 직접 넣는
+# 공식 방법이 없어서, 컴포넌트의 iframe에서 부모 문서(head)에 태그를 주입하는 방식 사용
+components.html(
+    """
+    <script>
+    (function() {
+        const head = window.parent.document.head;
+        function addLink(rel, href) {
+            if (head.querySelector(`link[rel="${rel}"]`)) return;
+            const link = document.createElement('link');
+            link.rel = rel;
+            link.href = href;
+            head.appendChild(link);
+        }
+        addLink('manifest', 'app/static/manifest.json');
+        addLink('apple-touch-icon', 'app/static/icon.png');
+        if (!head.querySelector('meta[name="apple-mobile-web-app-capable"]')) {
+            const m = document.createElement('meta');
+            m.name = 'apple-mobile-web-app-capable';
+            m.content = 'yes';
+            head.appendChild(m);
+        }
+        if (!head.querySelector('meta[name="apple-mobile-web-app-title"]')) {
+            const m2 = document.createElement('meta');
+            m2.name = 'apple-mobile-web-app-title';
+            m2.content = '분할매수';
+            head.appendChild(m2);
+        }
+    })();
+    </script>
+    """,
+    height=0,
+)
 
 st.markdown(
     """
@@ -243,6 +299,8 @@ if "search_results" not in st.session_state:
     st.session_state["search_results"] = []
 if "watchlist" not in st.session_state:
     st.session_state["watchlist"] = load_watchlist()
+if "saved_plans" not in st.session_state:
+    st.session_state["saved_plans"] = load_saved_plans()
 
 col_input, col_main = st.columns([1, 2], gap="large")
 
@@ -351,10 +409,12 @@ if data:
         st.subheader("매수 조건")
         amount_step = 10000.0 if currency == "KRW" else 100.0
         total_amount = st.number_input(
-            f"총 투자금액 ({currency})", min_value=0.0, value=float(5000 if currency != "KRW" else 5000000), step=amount_step
+            f"총 투자금액 ({currency})", min_value=0.0,
+            value=float(5000 if currency != "KRW" else 5000000), step=amount_step,
+            key=f"total_amount_{data['symbol']}",
         )
 
-        ratio_method = st.selectbox("분할 비율 방식", RATIO_METHODS)
+        ratio_method = st.selectbox("분할 비율 방식", RATIO_METHODS, key=f"ratio_method_{data['symbol']}")
 
         custom_ratio_list = None
         if ratio_method == "직접 입력":
@@ -362,6 +422,7 @@ if data:
                 "비율 입력 (쉼표로 구분)",
                 value="1, 1.5, 2, 2.5, 3",
                 help="회차별 투입 비율을 쉼표로 구분해서 입력하세요. 입력한 개수만큼 회차수가 정해져요.",
+                key=f"custom_ratio_{data['symbol']}",
             )
             try:
                 parsed = [float(x.strip()) for x in custom_text.split(",") if x.strip() != ""]
@@ -374,14 +435,18 @@ if data:
             rounds = len(custom_ratio_list)
             st.caption(f"총 {rounds}회차로 설정돼요.")
         else:
-            rounds = st.number_input("분할 회차수", min_value=2, max_value=30, value=5, step=1)
+            rounds = st.number_input(
+                "분할 회차수", min_value=2, max_value=30, value=5, step=1, key=f"rounds_{data['symbol']}"
+            )
 
         start_price = st.number_input(
-            f"매수 시작가 ({currency})", min_value=0.0, value=round(data["current_price"], 2), step=step, format=num_format
+            f"매수 시작가 ({currency})", min_value=0.0, value=round(data["current_price"], 2), step=step, format=num_format,
+            key=f"start_price_{data['symbol']}",
         )
         drop_pct = st.number_input(
             "회차마다 하락률 (%)", min_value=0.1, max_value=50.0, value=5.0, step=0.5,
-            help="직전 회차 매수가 대비 이만큼 떨어질 때마다 다음 회차를 매수해요."
+            help="직전 회차 매수가 대비 이만큼 떨어질 때마다 다음 회차를 매수해요.",
+            key=f"drop_pct_{data['symbol']}",
         )
 
         ratio_list = custom_ratio_list if custom_ratio_list is not None else generate_ratios(ratio_method, int(rounds))
@@ -477,7 +542,7 @@ if data:
                 value=round(data["high_52w"], 2),
                 step=step,
                 format=num_format,
-                key="target_price",
+                key=f"target_price_{data['symbol']}",
             )
 
             st.caption("표는 가로로 스크롤해서 볼 수 있어요. (수익률·수익금은 위 목표가 기준이에요)")
@@ -544,5 +609,50 @@ if data:
                     ),
                     unsafe_allow_html=True,
                 )
+
+        st.divider()
+        st.subheader("💾 이 설정 저장하기")
+        save_col1, save_col2 = st.columns([3, 1])
+        default_plan_name = f"{data['symbol']} 플랜"
+        plan_name = save_col1.text_input("설정 이름", value=default_plan_name, key="plan_name_input", label_visibility="collapsed", placeholder="설정 이름")
+        if save_col2.button("저장", use_container_width=True):
+            new_plan = {
+                "name": plan_name.strip() or default_plan_name,
+                "symbol": data["symbol"],
+                "currency": currency,
+                "total_amount": total_amount,
+                "ratio_method": ratio_method,
+                "custom_ratio_text": st.session_state.get(f"custom_ratio_{data['symbol']}", ""),
+                "rounds": int(rounds),
+                "start_price": start_price,
+                "drop_pct": drop_pct,
+                "target_price": st.session_state.get(f"target_price_{data['symbol']}", round(data["high_52w"], 2)),
+            }
+            st.session_state["saved_plans"].append(new_plan)
+            save_saved_plans(st.session_state["saved_plans"])
+            st.success(f"'{new_plan['name']}' 설정을 저장했어요.")
+
+        my_plans = [p for p in st.session_state["saved_plans"] if p["symbol"] == data["symbol"]]
+        if my_plans:
+            st.caption(f"{data['symbol']}로 저장된 설정")
+            for idx, p in enumerate(my_plans):
+                p_col1, p_col2 = st.columns([4, 1])
+                if p_col1.button(f"📂 {p['name']}", key=f"load_plan_{data['symbol']}_{idx}", use_container_width=True):
+                    st.session_state[f"total_amount_{p['symbol']}"] = p["total_amount"]
+                    st.session_state[f"ratio_method_{p['symbol']}"] = p["ratio_method"]
+                    if p["ratio_method"] == "직접 입력":
+                        st.session_state[f"custom_ratio_{p['symbol']}"] = p["custom_ratio_text"]
+                    else:
+                        st.session_state[f"rounds_{p['symbol']}"] = p["rounds"]
+                    st.session_state[f"start_price_{p['symbol']}"] = p["start_price"]
+                    st.session_state[f"drop_pct_{p['symbol']}"] = p["drop_pct"]
+                    st.session_state[f"target_price_{p['symbol']}"] = p["target_price"]
+                    st.rerun()
+                if p_col2.button("✕", key=f"del_plan_{data['symbol']}_{idx}"):
+                    st.session_state["saved_plans"] = [
+                        x for x in st.session_state["saved_plans"] if x is not p
+                    ]
+                    save_saved_plans(st.session_state["saved_plans"])
+                    st.rerun()
 else:
     st.info("종목을 검색해주세요.")
