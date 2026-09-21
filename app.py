@@ -29,7 +29,7 @@ def save_watchlist(watchlist):
 
 
 
-st.set_page_config(page_title="분할매수 계산기", page_icon="📉", layout="wide")
+st.set_page_config(page_title="분할매수 계산기", page_icon="icon.png", layout="wide")
 
 st.markdown(
     """
@@ -62,10 +62,14 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.markdown(
-    "<h1 style='font-size:1.5rem; font-weight:700; white-space:nowrap; margin-bottom:0.2rem;'>📉 분할매수 계산기</h1>",
-    unsafe_allow_html=True,
-)
+title_icon_col, title_text_col = st.columns([1, 12], vertical_alignment="center")
+with title_icon_col:
+    st.image("icon.png", width=42)
+with title_text_col:
+    st.markdown(
+        "<h1 style='font-size:1.5rem; font-weight:700; white-space:nowrap; margin-bottom:0.2rem;'>분할매수 계산기</h1>",
+        unsafe_allow_html=True,
+    )
 st.caption("종목명이나 티커를 검색하면 야후 파이낸스에서 최고가·MDD 데이터를 실시간으로 가져와 분할매수 계획을 세워드려요. 한국·미국 주식 모두 검색할 수 있어요.")
 st.caption("💡 라이트/다크 모드는 오른쪽 위 ⋮ 메뉴 → Settings → Theme에서 바꿀 수 있어요.")
 
