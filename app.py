@@ -131,9 +131,11 @@ RATIO_METHODS = ["균등분할", "피라미딩 (하락시 확대)", "역피라�
 
 
 def fmt_price(value: float, currency: str) -> str:
+    sign = "-" if value < 0 else ""
+    value = abs(value)
     if currency == "KRW":
-        return f"{value:,.0f}원"
-    return f"${value:,.2f}"
+        return f"{sign}{value:,.0f}원"
+    return f"{sign}${value:,.2f}"
 
 
 def generate_ratios(method: str, rounds: int):
@@ -320,7 +322,9 @@ if data:
             metric_row_html(
                 [
                     metric_card_html("52주 최저가", fmt_price(data["low_52w"], currency), "green"),
-                    metric_card_html("MDD (최고가 대비 현재가)", f"-{mdd:.1f}%", "danger"),
+                    metric_card_html(
+                        "MDD (최고가 대비 현재가)", f"{'-' if mdd > 0 else ''}{mdd:.1f}%", "danger" if mdd > 0 else "green"
+                    ),
                 ]
             ),
             unsafe_allow_html=True,
@@ -470,14 +474,15 @@ if data:
             for r in ladder:
                 pnl_pct = (target_price - r["avg_price"]) / r["avg_price"] * 100 if r["avg_price"] > 0 else 0
                 pnl_amt = (target_price - r["avg_price"]) * r["cum_qty"]
+                pnl_color = "#00A876" if pnl_pct >= 0 else "#E5384F"
                 stats_rows.append(
                     {
                         "완료": "✓" if r["i"] < completed_rounds else "",
                         "회차": f"{r['i'] + 1}회차",
                         "매수가": fmt_price(r["price"], currency),
                         "누적평단가": fmt_price(r["avg_price"], currency),
-                        "수익률": f"{pnl_pct:+.1f}%",
-                        "수익금": fmt_price(pnl_amt, currency),
+                        "수익률": f"<span style='color:{pnl_color}; font-weight:600;'>{pnl_pct:+.1f}%</span>",
+                        "수익금": f"<span style='color:{pnl_color}; font-weight:600;'>{fmt_price(pnl_amt, currency)}</span>",
                     }
                 )
             stats_df = pd.DataFrame(stats_rows)
