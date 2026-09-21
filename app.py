@@ -93,14 +93,14 @@ def render_html_table(df: pd.DataFrame, cell_styles: dict = None, row_style_fn=N
         for col in df.columns:
             col_style = cell_styles.get(col, "")
             cells += (
-                f"<td style='text-align:center; padding:8px 10px;"
+                f"<td style='text-align:center; padding:8px 10px; white-space:nowrap;"
                 f" border-bottom:1px solid rgba(128,128,128,0.15); color:var(--text-color); {row_extra} {col_style}'>"
                 f"{row[col]}</td>"
             )
         rows_html += f"<tr>{cells}</tr>"
     return f"""
     <div style="overflow-x:auto;">
-    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+    <table style="width:100%; min-width:max-content; border-collapse:collapse; font-size:13px;">
       <thead><tr>{thead}</tr></thead>
       <tbody>{rows_html}</tbody>
     </table>
@@ -115,8 +115,8 @@ def metric_card_html(label: str, value: str, accent: str = "green") -> str:
                 border-left:3px solid {border}; box-shadow:0 1px 2px rgba(0,0,0,0.06); min-width:0;">
         <div style="font-size:11.5px; color:var(--text-color); opacity:0.6; margin-bottom:3px;
                     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{label}</div>
-        <div style="font-size:clamp(13px, 4.2vw, 17px); font-weight:700; color:var(--text-color);
-                    line-height:1.25; overflow-wrap:break-word; word-break:keep-all;">{value}</div>
+        <div style="font-size:clamp(11px, 4vw, 17px); font-weight:700; color:var(--text-color);
+                    line-height:1.25; white-space:nowrap; overflow:hidden;">{value}</div>
     </div>
     """
 
