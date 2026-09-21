@@ -62,7 +62,10 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.title("📉 분할매수 계산기")
+st.markdown(
+    "<h1 style='font-size:1.5rem; font-weight:700; white-space:nowrap; margin-bottom:0.2rem;'>📉 분할매수 계산기</h1>",
+    unsafe_allow_html=True,
+)
 st.caption("종목명이나 티커를 검색하면 야후 파이낸스에서 최고가·MDD 데이터를 실시간으로 가져와 분할매수 계획을 세워드려요. 한국·미국 주식 모두 검색할 수 있어요.")
 st.caption("💡 라이트/다크 모드는 오른쪽 위 ⋮ 메뉴 → Settings → Theme에서 바꿀 수 있어요.")
 
@@ -74,19 +77,52 @@ ACCENT = {
 }
 
 
+def render_html_table(df: pd.DataFrame, cell_styles: dict = None, row_style_fn=None) -> str:
+    """모든 셀과 헤더를 가운데 정렬한 HTML 표. cell_styles: {컬럼명: 추가 스타일},
+    row_style_fn: 행 인덱스를 받아 그 행 전체에 적용할 스타일 문자열을 반환."""
+    cell_styles = cell_styles or {}
+    thead = "".join(
+        f"<th style='text-align:center; padding:8px 10px; border-bottom:1px solid rgba(128,128,128,0.25);"
+        f" font-weight:600; font-size:12px; color:var(--text-color); opacity:0.7; white-space:nowrap;'>{col}</th>"
+        for col in df.columns
+    )
+    rows_html = ""
+    for idx, row in df.iterrows():
+        row_extra = row_style_fn(idx) if row_style_fn else ""
+        cells = ""
+        for col in df.columns:
+            col_style = cell_styles.get(col, "")
+            cells += (
+                f"<td style='text-align:center; padding:8px 10px;"
+                f" border-bottom:1px solid rgba(128,128,128,0.15); color:var(--text-color); {row_extra} {col_style}'>"
+                f"{row[col]}</td>"
+            )
+        rows_html += f"<tr>{cells}</tr>"
+    return f"""
+    <div style="overflow-x:auto;">
+    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <thead><tr>{thead}</tr></thead>
+      <tbody>{rows_html}</tbody>
+    </table>
+    </div>
+    """
+
+
 def metric_card_html(label: str, value: str, accent: str = "green") -> str:
     border = ACCENT[accent]["border"]
     return f"""
     <div style="background:var(--secondary-background-color); border-radius:10px; padding:0.85rem 1rem;
-                border-left:3px solid {border}; box-shadow:0 1px 2px rgba(0,0,0,0.06);">
-        <div style="font-size:11.5px; color:var(--text-color); opacity:0.6; margin-bottom:3px;">{label}</div>
-        <div style="font-size:17px; font-weight:700; color:var(--text-color);">{value}</div>
+                border-left:3px solid {border}; box-shadow:0 1px 2px rgba(0,0,0,0.06); min-width:0;">
+        <div style="font-size:11.5px; color:var(--text-color); opacity:0.6; margin-bottom:3px;
+                    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{label}</div>
+        <div style="font-size:clamp(13px, 4.2vw, 17px); font-weight:700; color:var(--text-color);
+                    line-height:1.25; overflow-wrap:break-word; word-break:keep-all;">{value}</div>
     </div>
     """
 
 
 def metric_row_html(cards: list) -> str:
-    cols = "".join(f'<div>{html}</div>' for html in cards)
+    cols = "".join(f'<div style="min-width:0;">{html}</div>' for html in cards)
     return f'<div style="display:grid; grid-template-columns:repeat({len(cards)}, 1fr); gap:10px; margin-bottom:1rem;">{cols}</div>'
 
 DIRECT_SYMBOL_RE = re.compile(r"^[A-Za-z0-9.\-]{1,12}$")
@@ -381,10 +417,12 @@ if data:
                 ]
             )
 
-            styled = df.style.set_properties(
-                subset=["매수가"], **{"font-weight": "700", "font-size": "15px", "color": "#00A876"}
+            st.markdown(
+                render_html_table(
+                    df, cell_styles={"매수가": "font-weight:700; font-size:15px; color:#00A876;"}
+                ),
+                unsafe_allow_html=True,
             )
-            st.dataframe(styled, use_container_width=True, hide_index=True)
             st.caption("매수 수량은 소수점을 버리고 정수 주 단위로 계산해서, 회차별 투자금을 넘지 않도록 했어요.")
 
             if ladder:
@@ -444,16 +482,14 @@ if data:
                 )
             stats_df = pd.DataFrame(stats_rows)
 
-            def highlight_completed(row):
-                idx = int(row.name)
+            def stats_row_style(idx):
                 if idx < completed_rounds:
-                    return ["color:#00A876; font-weight:700;" for _ in row]
-                return ["opacity:0.45;" for _ in row]
+                    return "color:#00A876; font-weight:700;"
+                return "opacity:0.45;"
 
-            st.dataframe(
-                stats_df.style.apply(highlight_completed, axis=1),
-                use_container_width=True,
-                hide_index=True,
+            st.markdown(
+                render_html_table(stats_df, row_style_fn=stats_row_style),
+                unsafe_allow_html=True,
             )
 
             if completed_rounds > 0:
