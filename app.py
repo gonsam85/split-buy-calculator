@@ -418,49 +418,52 @@ if data:
                 key="target_price",
             )
 
-            st.caption("회차를 체크하면 실제 매수한 회차로 표시돼요.")
-            st.write("")
+            st.caption("표는 가로로 스크롤해서 볼 수 있어요. (수익률·수익금은 위 목표가 기준이에요)")
 
-            header_cols = st.columns([0.5, 0.9, 1.2, 1.3, 1.6, 1.6])
-            for c, h in zip(header_cols, ["완료", "회차", "매수가", "누적평단가", "목표가 달성시 수익률", "목표가 달성시 수익금"]):
-                c.markdown(f"**{h}**")
+            completed_rounds = st.slider(
+                "매수 완료 회차 (여기까지 매수했어요)",
+                min_value=0,
+                max_value=len(ladder),
+                value=min(st.session_state.get(f"completed_{data['symbol']}", 0), len(ladder)),
+                key=f"completed_{data['symbol']}",
+            )
 
-            prev_checked = True
+            stats_rows = []
             for r in ladder:
-                bought_key = f"bought_{data['symbol']}_{r['i']}"
-                allowed = prev_checked
-                if not allowed:
-                    st.session_state[bought_key] = False
-
-                row_cols = st.columns([0.5, 0.9, 1.2, 1.3, 1.6, 1.6])
-                checked = row_cols[0].checkbox(
-                    "매수 완료", key=bought_key, label_visibility="collapsed", disabled=not allowed
-                )
-                bought = allowed and checked
-                prev_checked = bought
-
                 pnl_pct = (target_price - r["avg_price"]) / r["avg_price"] * 100 if r["avg_price"] > 0 else 0
                 pnl_amt = (target_price - r["avg_price"]) * r["cum_qty"]
+                stats_rows.append(
+                    {
+                        "완료": "✓" if r["i"] < completed_rounds else "",
+                        "회차": f"{r['i'] + 1}회차",
+                        "매수가": fmt_price(r["price"], currency),
+                        "누적평단가": fmt_price(r["avg_price"], currency),
+                        "수익률": f"{pnl_pct:+.1f}%",
+                        "수익금": fmt_price(pnl_amt, currency),
+                    }
+                )
+            stats_df = pd.DataFrame(stats_rows)
 
-                # 고정 회색 대신 opacity로 흐리게 처리해서 라이트/다크 모드 모두에서 자연스럽게 보이도록 함
-                text_style = "color:#00A876; font-weight:700;" if bought else "opacity:0.45;"
-                row_cols[1].markdown(f"<span style='{text_style}'>{r['i'] + 1}회차{' ✓' if bought else ''}</span>", unsafe_allow_html=True)
-                row_cols[2].markdown(f"<span style='{text_style}'>{fmt_price(r['price'], currency)}</span>", unsafe_allow_html=True)
-                row_cols[3].markdown(f"<span style='{text_style}'>{fmt_price(r['avg_price'], currency)}</span>", unsafe_allow_html=True)
-                row_cols[4].markdown(f"<span style='{text_style}'>{pnl_pct:+.1f}%</span>", unsafe_allow_html=True)
-                row_cols[5].markdown(f"<span style='{text_style}'>{fmt_price(pnl_amt, currency)}</span>", unsafe_allow_html=True)
-            st.caption("회차는 순서대로만 체크할 수 있어요 — 이전 회차를 체크해야 다음 회차가 활성화돼요.")
+            def highlight_completed(row):
+                idx = int(row.name)
+                if idx < completed_rounds:
+                    return ["color:#00A876; font-weight:700;" for _ in row]
+                return ["opacity:0.45;" for _ in row]
 
-            bought_count = sum(1 for r in ladder if st.session_state.get(f"bought_{data['symbol']}_{r['i']}"))
-            if bought_count:
-                bought_rows = [r for r in ladder if st.session_state.get(f"bought_{data['symbol']}_{r['i']}")]
-                last_bought = bought_rows[-1]
+            st.dataframe(
+                stats_df.style.apply(highlight_completed, axis=1),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+            if completed_rounds > 0:
+                last_bought = ladder[completed_rounds - 1]
                 st.divider()
                 cur_pnl = (target_price - last_bought["avg_price"]) / last_bought["avg_price"] * 100 if last_bought["avg_price"] > 0 else 0
                 st.markdown(
                     metric_row_html(
                         [
-                            metric_card_html("매수 완료 회차", f"{bought_count} / {len(ladder)}회차", "green"),
+                            metric_card_html("매수 완료 회차", f"{completed_rounds} / {len(ladder)}회차", "green"),
                             metric_card_html("현재까지 평단가", fmt_price(last_bought["avg_price"], currency), "green"),
                             metric_card_html(
                                 "목표가 달성시 예상 수익률", f"{cur_pnl:+.1f}%", "green" if cur_pnl >= 0 else "danger"
