@@ -301,6 +301,23 @@ if "watchlist" not in st.session_state:
     st.session_state["watchlist"] = load_watchlist()
 if "saved_plans" not in st.session_state:
     st.session_state["saved_plans"] = load_saved_plans()
+if "pending_load_plan" not in st.session_state:
+    st.session_state["pending_load_plan"] = None
+
+# 저장된 설정 불러오기는 위젯이 이미 생성된 뒤에는 session_state를 바꿀 수 없어서,
+# 다음 재실행 맨 앞(위젯 생성 전)에서 한 번에 반영함
+if st.session_state["pending_load_plan"]:
+    _p = st.session_state["pending_load_plan"]
+    st.session_state[f"total_amount_{_p['symbol']}"] = _p["total_amount"]
+    st.session_state[f"ratio_method_{_p['symbol']}"] = _p["ratio_method"]
+    if _p["ratio_method"] == "직접 입력":
+        st.session_state[f"custom_ratio_{_p['symbol']}"] = _p["custom_ratio_text"]
+    else:
+        st.session_state[f"rounds_{_p['symbol']}"] = _p["rounds"]
+    st.session_state[f"start_price_{_p['symbol']}"] = _p["start_price"]
+    st.session_state[f"drop_pct_{_p['symbol']}"] = _p["drop_pct"]
+    st.session_state[f"target_price_{_p['symbol']}"] = _p["target_price"]
+    st.session_state["pending_load_plan"] = None
 
 col_input, col_main = st.columns([1, 2], gap="large")
 
@@ -638,15 +655,7 @@ if data:
             for idx, p in enumerate(my_plans):
                 p_col1, p_col2 = st.columns([4, 1])
                 if p_col1.button(f"📂 {p['name']}", key=f"load_plan_{data['symbol']}_{idx}", use_container_width=True):
-                    st.session_state[f"total_amount_{p['symbol']}"] = p["total_amount"]
-                    st.session_state[f"ratio_method_{p['symbol']}"] = p["ratio_method"]
-                    if p["ratio_method"] == "직접 입력":
-                        st.session_state[f"custom_ratio_{p['symbol']}"] = p["custom_ratio_text"]
-                    else:
-                        st.session_state[f"rounds_{p['symbol']}"] = p["rounds"]
-                    st.session_state[f"start_price_{p['symbol']}"] = p["start_price"]
-                    st.session_state[f"drop_pct_{p['symbol']}"] = p["drop_pct"]
-                    st.session_state[f"target_price_{p['symbol']}"] = p["target_price"]
+                    st.session_state["pending_load_plan"] = p
                     st.rerun()
                 if p_col2.button("✕", key=f"del_plan_{data['symbol']}_{idx}"):
                     st.session_state["saved_plans"] = [
