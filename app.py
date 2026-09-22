@@ -5,7 +5,6 @@ import re
 
 import pandas as pd
 import streamlit as st
-import streamlit.components.v1 as components
 import yfinance as yf
 
 WATCHLIST_FILE = "watchlist.json"
@@ -52,40 +51,6 @@ def save_saved_plans(plans):
 
 
 st.set_page_config(page_title="분할매수 계산기", page_icon="icon.png", layout="wide")
-
-# 모바일 "홈 화면에 추가" 아이콘 적용: Streamlit은 <head>에 커스텀 태그를 직접 넣는
-# 공식 방법이 없어서, 컴포넌트의 iframe에서 부모 문서(head)에 태그를 주입하는 방식 사용
-components.html(
-    """
-    <script>
-    (function() {
-        const head = window.parent.document.head;
-        function addLink(rel, href) {
-            if (head.querySelector(`link[rel="${rel}"]`)) return;
-            const link = document.createElement('link');
-            link.rel = rel;
-            link.href = href;
-            head.appendChild(link);
-        }
-        addLink('manifest', 'app/static/manifest.json');
-        addLink('apple-touch-icon', 'app/static/icon.png');
-        if (!head.querySelector('meta[name="apple-mobile-web-app-capable"]')) {
-            const m = document.createElement('meta');
-            m.name = 'apple-mobile-web-app-capable';
-            m.content = 'yes';
-            head.appendChild(m);
-        }
-        if (!head.querySelector('meta[name="apple-mobile-web-app-title"]')) {
-            const m2 = document.createElement('meta');
-            m2.name = 'apple-mobile-web-app-title';
-            m2.content = '분할매수';
-            head.appendChild(m2);
-        }
-    })();
-    </script>
-    """,
-    height=0,
-)
 
 st.markdown(
     """
